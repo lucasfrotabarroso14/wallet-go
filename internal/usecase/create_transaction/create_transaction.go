@@ -1,8 +1,9 @@
-package transaction
+package create_transaction
 
 import (
 	"wallet-fc/internal/entity"
 	"wallet-fc/internal/gateway"
+	"wallet-fc/pkg/events"
 )
 
 type CreateTransactionInputDTO struct {
@@ -18,12 +19,16 @@ type CreateTransactionOutputDTO struct {
 type CreateTransactionUseCase struct {
 	transactionGateway gateway.TransactionGateway
 	accountGateway     gateway.AccountGateway
+	eventDispatcher    events.EventDispatcherInterface
+	transactionCreated events.EventInterface
 }
 
-func NewCreateTransactionUseCase(transactionGateway gateway.TransactionGateway, accountGateway gateway.AccountGateway) *CreateTransactionUseCase {
+func NewCreateTransactionUseCase(transactionGateway gateway.TransactionGateway, accountGateway gateway.AccountGateway, eventDispatcher events.EventDispatcherInterface, transactionCreated events.EventInterface) *CreateTransactionUseCase {
 	return &CreateTransactionUseCase{
 		transactionGateway: transactionGateway,
 		accountGateway:     accountGateway,
+		eventDispatcher:    eventDispatcher,
+		transactionCreated: transactionCreated,
 	}
 }
 func (uc *CreateTransactionUseCase) Execute(input CreateTransactionInputDTO) (*CreateTransactionOutputDTO, error) {
@@ -39,12 +44,14 @@ func (uc *CreateTransactionUseCase) Execute(input CreateTransactionInputDTO) (*C
 	if err != nil {
 		return nil, err
 	}
-	err = uc.transactionGateway.Create(transaction)
-	if err != nil {
-		return nil, err
-	}
-	return &CreateTransactionOutputDTO{
+
+	output := &CreateTransactionOutputDTO{
 		ID: transaction.ID,
-	}, nil
+	}
+
+	uc.transactionCreated.SetPayload(output)
+	_ = uc.eventDispatcher.Dispatch(uc.transactionCreated)
+
+	return output, nil
 
 }

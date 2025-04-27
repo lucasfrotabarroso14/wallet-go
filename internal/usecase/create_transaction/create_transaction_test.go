@@ -1,10 +1,12 @@
-package transaction
+package create_transaction
 
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
 	"wallet-fc/internal/entity"
+	event2 "wallet-fc/internal/event"
+	"wallet-fc/pkg/events"
 )
 
 type TransactionGatewayMock struct {
@@ -64,7 +66,10 @@ func TestCreateTransactionUseCase_Execute(t *testing.T) {
 		Amount:        100,
 	}
 
-	uc := NewCreateTransactionUseCase(mockTransaction, mockAccount)
+	dispatcher := events.NewEventDispatcher()
+	event := event2.NewTransactionCreated()
+
+	uc := NewCreateTransactionUseCase(mockTransaction, mockAccount, dispatcher, event)
 	output, err := uc.Execute(inputDTO)
 	assert.Nil(t, err)
 	assert.NotNil(t, output)
