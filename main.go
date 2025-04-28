@@ -4,20 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	ckafka "github.com/confluentinc/confluent-kafka-go/kafka"
 	_ "github.com/go-sql-driver/mysql"
 	"wallet-fc/internal/database"
 	"wallet-fc/internal/event"
+	"wallet-fc/internal/event/handler"
 	"wallet-fc/internal/usecase/create_account"
 	"wallet-fc/internal/usecase/create_client"
 	"wallet-fc/internal/usecase/create_transaction"
 	"wallet-fc/internal/web"
 	"wallet-fc/internal/web/webserver"
 	"wallet-fc/pkg/events"
+	"wallet-fc/pkg/kafka"
 	uow2 "wallet-fc/pkg/uow"
 )
 
 func main() {
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", "root", "root", "localhost", 3309, "wallet"))
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", "root", "root", "mysql", 3306, "wallet"))
 
 	if err != nil {
 		panic(err)
@@ -26,7 +29,12 @@ func main() {
 
 	eventDispatcher := events.NewEventDispatcher()
 	transactionCreatedEvent := event.NewTransactionCreated()
-	//eventDispatcher.Register("TransactionCreated",handler)
+	configMap := ckafka.ConfigMap{
+		"bootstrap.servers": "kafka:29092",
+		"group.id":          "wallet",
+	}
+	kafkaProducer := kafka.NewKafkaProducer(&configMap)
+	eventDispatcher.Register("TransactionCreated", handler.NewTransactionCreatedKafkaHandler(kafkaProducer))
 
 	clientDB := database.NewClientDB(db)
 	accountDB := database.NewAccountDB(db)
@@ -43,7 +51,7 @@ func main() {
 	createAccountUseCase := create_account.NewCreateAccountUseCase(accountDB, clientDB)
 	createTransactionUseCase := create_transaction.NewCreateTransactionUseCase(uow, eventDispatcher, transactionCreatedEvent)
 
-	webServer := webserver.NewWebServer(":3000")
+	webServer := webserver.NewWebServer(":8080")
 
 	clientHandler := web.NewWebClientHandler(*createClientUseCase)
 	accountHandler := web.NewWebAccountHandler(*createAccountUseCase)
@@ -52,7 +60,7 @@ func main() {
 	webServer.AddHandler("/clients", clientHandler.CreateClient)
 	webServer.AddHandler("/accounts", accountHandler.CreateAccount)
 	webServer.AddHandler("/transactions", transactionHandler.CreateTransaction)
-
+	fmt.Println("Starting web server on port 8080")
 	webServer.Start()
 
 }
