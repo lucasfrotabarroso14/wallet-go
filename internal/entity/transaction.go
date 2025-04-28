@@ -37,11 +37,10 @@ func (t *Transaction) Commit() {
 
 func (t *Transaction) Validate() error {
 	if t.Amount <= 0 {
-		return errors.New("Amount must be greater than zero")
+		return errors.New("amount must be greater than zero")
 	}
-	if t.Amount <= 0 {
-		return errors.New("Amount must be greater than zero")
+	if t.AccountFrom.Balance < t.Amount {
+		return errors.New("insufficient funds")
 	}
 	return nil
-
 }

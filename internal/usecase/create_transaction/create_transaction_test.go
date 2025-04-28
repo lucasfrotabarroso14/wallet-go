@@ -1,11 +1,13 @@
 package create_transaction
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
 	"wallet-fc/internal/entity"
 	event2 "wallet-fc/internal/event"
+	"wallet-fc/internal/usecase/mocks"
 	"wallet-fc/pkg/events"
 )
 
@@ -54,28 +56,26 @@ func TestCreateTransactionUseCase_Execute(t *testing.T) {
 	account02.Credit(1000)
 
 	mockAccount := &AccountGatewayMock{}
-	mockAccount.On("FindByID", account01.ID).Return(account01, nil)
-	mockAccount.On("FindByID", account02.ID).Return(account02, nil)
 
 	mockTransaction := &TransactionGatewayMock{}
-	mockTransaction.On("Create", mock.Anything).Return(nil)
 
+	uowMock := &mocks.UowMock{}
+	uowMock.On("Do", mock.Anything, mock.Anything).Return(nil)
 	inputDTO := CreateTransactionInputDTO{
 		AccountIDFrom: account01.ID,
 		AccountIDTo:   account02.ID,
 		Amount:        100,
 	}
-
 	dispatcher := events.NewEventDispatcher()
 	event := event2.NewTransactionCreated()
+	ctx := context.Background()
 
-	uc := NewCreateTransactionUseCase(mockTransaction, mockAccount, dispatcher, event)
-	output, err := uc.Execute(inputDTO)
+	uc := NewCreateTransactionUseCase(uowMock, dispatcher, event)
+	err := uc.Execute(ctx, inputDTO)
 	assert.Nil(t, err)
-	assert.NotNil(t, output)
+	uowMock.AssertExpectations(t)
 	mockAccount.AssertExpectations(t)
 	mockTransaction.AssertExpectations(t)
-	mockAccount.AssertNumberOfCalls(t, "FindByID", 2)
-	mockTransaction.AssertNumberOfCalls(t, "Create", 1)
+	uowMock.AssertNumberOfCalls(t, "Do", 1)
 
 }
