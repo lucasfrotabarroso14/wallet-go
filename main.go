@@ -34,7 +34,7 @@ func main() {
 		"group.id":          "wallet",
 	}
 	kafkaProducer := kafka.NewKafkaProducer(&configMap)
-	eventDispatcher.Register("TransactionCreated", handler.NewTransactionCreatedKafkaHandler(kafkaProducer))
+	eventDispatcher.Register("transactionCreated", handler.NewTransactionCreatedKafkaHandler(kafkaProducer))
 
 	clientDB := database.NewClientDB(db)
 	accountDB := database.NewAccountDB(db)

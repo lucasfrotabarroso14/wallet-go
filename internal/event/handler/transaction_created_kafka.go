@@ -19,7 +19,10 @@ func NewTransactionCreatedKafkaHandler(kafka *kafka.Producer) *TransactionCreate
 
 func (h *TransactionCreatedKafkaHandler) Handle(message events.EventInterface, wg *sync.WaitGroup) {
 	defer wg.Done()
-	h.kafka.Publish(message, nil, "transactions")
-	fmt.Println("TransactionCreatedKafkaHandler:", message)
+	if err := h.kafka.Publish(message, nil, "transactions"); err != nil {
+		fmt.Println("Erro ao publica mensagem no kafka ->:", err)
+		return
+	}
+	fmt.Println("TransactionCreatedKafkaHandler:", message.GetPayload())
 
 }
